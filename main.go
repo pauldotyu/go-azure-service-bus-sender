@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -25,7 +24,11 @@ func GetClient() *azservicebus.Client {
 }
 
 func SendMessageBatch(messages []string, client *azservicebus.Client) {
-	sender, err := client.NewSender("myqueue", nil)
+	queue, ok := os.LookupEnv("AZURE_SERVICEBUS_QUEUE_NAME") //ex: myqueue
+	if !ok {
+		panic("AZURE_SERVICEBUS_QUEUE_NAME environment variable not found")
+	}
+	sender, err := client.NewSender(queue, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -49,16 +52,18 @@ func SendMessageBatch(messages []string, client *azservicebus.Client) {
 }
 
 func main() {
-	batchPtr := flag.String("batchSize", "10", "the number of messages to send in a batch")
-	flag.Parse()
+	batchSize, ok := os.LookupEnv("BATCH_SIZE") //ex: 10
+	if !ok {
+		panic("BATCH_SIZE environment variable not found")
+	}
 
-	batchSize, err := strconv.Atoi(*batchPtr)
+	batchSizeInt, err := strconv.Atoi(batchSize)
 	if err != nil {
 		panic(err)
 	}
 
 	messages := []string{}
-	for i := 1; i <= batchSize; i++ {
+	for i := 1; i <= batchSizeInt; i++ {
 		messages = append(messages, "message "+strconv.Itoa(i))
 	}
 
