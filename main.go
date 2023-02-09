@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 )
@@ -52,22 +53,27 @@ func SendMessageBatch(messages []string, client *azservicebus.Client) {
 }
 
 func main() {
-	batchSize, ok := os.LookupEnv("BATCH_SIZE") //ex: 10
-	if !ok {
-		panic("BATCH_SIZE environment variable not found")
-	}
+	batchNbr := 0
 
-	batchSizeInt, err := strconv.Atoi(batchSize)
-	if err != nil {
-		panic(err)
-	}
+	for {
+		batchNbr++
+		messageNbr := 0
+		// starting with a batch size of 1, send messages to service bus and double the batch size each time until we reach 256
+		for i := 1; i <= 256; i *= 2 {
+			messages := make([]string, i)
+			for j := 0; j < i; j++ {
+				messageNbr++
+				messages[j] = "batch " + strconv.Itoa(batchNbr) + " message " + strconv.Itoa(messageNbr)
+			}
 
-	messages := []string{}
-	for i := 1; i <= batchSizeInt; i++ {
-		messages = append(messages, "message "+strconv.Itoa(i))
-	}
+			// log the batch size and the number of messages in the batch
+			fmt.Printf("Sending batch %d with %d messages\n", batchNbr, i)
 
-	client := GetClient()
-	fmt.Println("send messages as a batch...")
-	SendMessageBatch(messages[:], client)
+			client := GetClient()
+			SendMessageBatch(messages, client)
+		}
+
+		// cool down
+		time.Sleep(2 * time.Minute)
+	}
 }
