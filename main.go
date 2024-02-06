@@ -4,24 +4,46 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 )
 
 func GetClient() *azservicebus.Client {
+	// Use the connection string if it is available, otherwise use Azure Identity
 	connectionString, ok := os.LookupEnv("AZURE_SERVICEBUS_CONNECTION_STRING") //ex: Endpoint=sb://<YOUR_NAMESPACE>.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=<YOUR_SHARED_ACCESS_KEY>
-	if !ok {
-		panic("AZURE_SERVICEBUS_CONNECTION_STRING environment variable not found")
+
+	if ok {
+		client, err := azservicebus.NewClientFromConnectionString(connectionString, nil)
+		if err != nil {
+			log.Fatalf("failed to create a Service Bus client: %v", err)
+		} else {
+			fmt.Println("Service Bus client created from connection string")
+			return client
+		}
+	} else {
+		cred, err := azidentity.NewDefaultAzureCredential(nil)
+		if err != nil {
+			log.Fatalf("failed to obtain a credential: %v", err)
+		}
+		sbHostname, ok := os.LookupEnv("AZURE_SERVICEBUS_HOSTNAME") //ex: <YOUR_NAMESPACE>.servicebus.windows.net
+		if !ok {
+			panic("AZURE_SERVICEBUS_HOSTNAME environment variable not found")
+		}
+		client, err := azservicebus.NewClient(sbHostname, cred, nil)
+		if err != nil {
+			log.Fatalf("failed to create a Service Bus client: %v", err)
+		} else {
+			fmt.Println("Service Bus client created with Azure Identity")
+			return client
+		}
 	}
 
-	client, err := azservicebus.NewClientFromConnectionString(connectionString, nil)
-	if err != nil {
-		panic(err)
-	}
-	return client
+	return nil
 }
 
 func SendMessageBatch(messages []string, client *azservicebus.Client) {
@@ -58,6 +80,8 @@ func main() {
 	for {
 		batchNbr++
 		messageNbr := 0
+
+		client := GetClient()
 		// starting with a batch size of 1, send messages to service bus and double the batch size each time until we reach 256
 		for i := 1; i <= 256; i *= 2 {
 			messages := make([]string, i)
@@ -69,11 +93,10 @@ func main() {
 			// log the batch size and the number of messages in the batch
 			fmt.Printf("Sending batch %d with %d messages\n", batchNbr, i)
 
-			client := GetClient()
 			SendMessageBatch(messages, client)
 		}
 
-		// cool down
+		fmt.Printf("Backing off for 2 minutes\n")
 		time.Sleep(2 * time.Minute)
 	}
 }
