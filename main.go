@@ -15,7 +15,7 @@ import (
 
 func GetClient() *azservicebus.Client {
 	// Use the connection string if it is available, otherwise use Azure Identity
-	connectionString, ok := os.LookupEnv("AZURE_SERVICEBUS_CONNECTION_STRING") //ex: Endpoint=sb://<YOUR_NAMESPACE>.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=<YOUR_SHARED_ACCESS_KEY>
+	connectionString, ok := os.LookupEnv("AZURE_SERVICEBUS_CONNECTIONSTRING") //ex: Endpoint=sb://<YOUR_NAMESPACE>.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=<YOUR_SHARED_ACCESS_KEY>
 
 	if ok {
 		client, err := azservicebus.NewClientFromConnectionString(connectionString, nil)
@@ -30,9 +30,9 @@ func GetClient() *azservicebus.Client {
 		if err != nil {
 			log.Fatalf("failed to obtain a credential: %v", err)
 		}
-		sbHostname, ok := os.LookupEnv("AZURE_SERVICEBUS_HOSTNAME") //ex: <YOUR_NAMESPACE>.servicebus.windows.net
+		sbHostname, ok := os.LookupEnv("AZURE_SERVICEBUS_FULLYQUALIFIEDNAMESPACE") //ex: <YOUR_NAMESPACE>.servicebus.windows.net
 		if !ok {
-			panic("AZURE_SERVICEBUS_HOSTNAME environment variable not found")
+			panic("AZURE_SERVICEBUS_FULLYQUALIFIEDNAMESPACE environment variable not found")
 		}
 		client, err := azservicebus.NewClient(sbHostname, cred, nil)
 		if err != nil {
@@ -47,9 +47,9 @@ func GetClient() *azservicebus.Client {
 }
 
 func SendMessageBatch(messages []string, client *azservicebus.Client) {
-	queue, ok := os.LookupEnv("AZURE_SERVICEBUS_QUEUE_NAME") //ex: myqueue
+	queue, ok := os.LookupEnv("AZURE_SERVICEBUS_QUEUENAME") //ex: myqueue
 	if !ok {
-		panic("AZURE_SERVICEBUS_QUEUE_NAME environment variable not found")
+		panic("AZURE_SERVICEBUS_QUEUENAME environment variable not found")
 	}
 	sender, err := client.NewSender(queue, nil)
 	if err != nil {
